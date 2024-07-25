@@ -1,0 +1,12 @@
+[package]
+name = "rust-pad"
+version = "0.1.0"
+edition = "2021"
+description = "test app"
+
+[dependencies]
+druid = { version = "0.7.0", features = ["im"] }
+
+[package.metadata.bundle]
+name = "Rustpad"
+identifier = "io.div.rustpad"
