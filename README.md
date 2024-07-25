@@ -7,11 +7,8 @@ This project is a Notepad clone built using the Rust programming language. It of
 ## Features
 
 - **Basic Text Editing**: Create, open, edit, and save text files.
-- **Syntax Highlighting**: Support for multiple programming languages.
 - **Find and Replace**: Easily search and replace text within documents.
-- **Undo/Redo**: Unlimited undo and redo actions.
-- **Auto-Save**: Automatically save changes at regular intervals.
-- **Customizable Themes**: Change the appearance with various themes.
+- **Undo/Redo**: undo and redo actions.
 - **Line Numbers**: Display line numbers for better code readability.
 - **Multi-Tab Interface**: Work on multiple documents simultaneously.
 - **Cross-Platform Support**: Works on Windows, macOS, and Linux.
