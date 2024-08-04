@@ -1,113 +1,91 @@
-use druid::commands::{SHOW_OPEN_PANEL, SHOW_SAVE_PANEL};
-use druid::widget::{Button, Flex, Label, TextBox};
-use druid::{AppLauncher, Data, Env, Lens, Widget, WidgetExt, WindowDesc, Command, FileDialogOptions, FileSpec, Target};
+use gtk::prelude::*;
+use gtk::{Application, ApplicationWindow, Box, Button, Entry, Orientation, ScrolledWindow, TextView};
 use std::fs::File;
 use std::io::{Read, Write};
-use std::sync::Arc;
-use std::path::PathBuf;
-
-#[derive(Clone, Data, Lens)]
-struct AppState {
-    text: String,
-    path: Option<Arc<PathBuf>>,
-}
-
-fn build_ui() -> impl Widget<AppState> {
-    let textbox = TextBox::multiline()
-        .with_placeholder("Enter your text here...")
-        .lens(AppState::text)
-        .expand();
-
-    let load_button = Button::new("Load")
-        .on_click(|ctx, _data: &mut AppState, _env| {
-            let options = FileDialogOptions::new()
-                .allowed_types(vec![FileSpec::new("Text file", &["txt"])])
-                .default_type(FileSpec::new("Text file", &["txt"]))
-                .name_label("File Name")
-                .title("Choose a file to open")
-                .button_text("Open");
-
-            ctx.submit_command(Command::new(SHOW_OPEN_PANEL, options, Target::Auto));
-        });
-
-    let save_button = Button::new("Save")
-        .on_click(|ctx, data: &mut AppState, _env| {
-            if let Some(path) = &data.path {
-                save_to_file(path, &data.text);
-            } else {
-                let options = FileDialogOptions::new()
-                    .allowed_types(vec![FileSpec::new("Text file", &["txt"])])
-                    .default_type(FileSpec::new("Text file", &["txt"]))
-                    .name_label("File Name")
-                    .title("Save file as")
-                    .button_text("Save");
-
-                ctx.submit_command(Command::new(SHOW_SAVE_PANEL, options, Target::Auto));
-            }
-        });
-
-    let title_bar = Flex::row()
-        .with_child(load_button)
-        .with_child(save_button)
-        .padding(5.0);
-
-    Flex::column()
-        .with_child(title_bar)
-        .with_flex_child(textbox, 1.0)
-}
-
-fn save_to_file(path: &PathBuf, text: &str) {
-    if let Ok(mut file) = File::create(path) {
-        let _ = file.write_all(text.as_bytes());
-    }
-}
+use std::rc::Rc;
+use std::cell::RefCell;
 
 fn main() {
-    let main_window = WindowDesc::new(build_ui)
-        .title("Rust Text Editor")
-        .window_size((800.0, 600.0));
+    let app = Application::builder()
+        .application_id("com.example.text_file_reader_writer")
+        .build();
 
-    let initial_state = AppState {
-        text: String::new(),
-        path: None,
-    };
-
-    AppLauncher::with_window(main_window)
-        .delegate(Delegate)
-        .launch(initial_state)
-        .expect("Failed to launch application");
+    app.connect_activate(build_ui);
+    app.run();
 }
 
-struct Delegate;
+fn build_ui(app: &Application) {
+    let window = ApplicationWindow::builder()
+        .application(app)
+        .title("Text File Reader/Writer")
+        .default_width(600)
+        .default_height(400)
+        .build();
 
-impl druid::AppDelegate<AppState> for Delegate {
-    fn command(
-        &mut self,
-        _ctx: &mut druid::DelegateCtx,
-        _target: druid::Target,
-        cmd: &druid::Command,
-        data: &mut AppState,
-        _env: &Env,
-    ) -> druid::Handled {
-        if let Some(file_info) = cmd.get(druid::commands::OPEN_FILE) {
-            if let Ok(mut file) = File::open(&file_info.path()) {
-                let mut contents = String::new();
-                if file.read_to_string(&mut contents).is_ok() {
-                    data.text = contents;
-                    data.path = Some(Arc::new(file_info.path().to_path_buf()));
-                }
-            }
-            return druid::Handled::Yes;
+    let vbox = Box::new(Orientation::Vertical, 5);
+
+    let entry = Entry::builder()
+        .placeholder_text("Enter file path here")
+        .build();
+
+    let text_view = TextView::new();
+    text_view.set_wrap_mode(gtk::WrapMode::Word);
+
+    let scrolled_window = ScrolledWindow::builder()
+        .child(&text_view)
+        .vexpand(true)
+        .build();
+
+    let read_button = Button::with_label("Read File");
+    let write_button = Button::with_label("Write File");
+
+    let entry_ref = Rc::new(entry);
+    let text_view_ref = Rc::new(text_view);
+
+    let read_entry_ref = Rc::clone(&entry_ref);
+    let read_text_view_ref = Rc::clone(&text_view_ref);
+    read_button.connect_clicked(move |_| {
+        let file_path = read_entry_ref.text().to_string();
+        let mut file = match File::open(&file_path) {
+            Ok(file) => file,
+            Err(_) => {
+                println!("Failed to open file: {}", file_path);
+                return;
+            },
+        };
+        let mut contents = String::new();
+        if file.read_to_string(&mut contents).is_ok() {
+            read_text_view_ref.buffer().set_text(&contents);
         }
+    });
 
-        if let Some(file_info) = cmd.get(druid::commands::SAVE_FILE_AS) {
-            if let Ok(mut file) = File::create(&file_info.path()) {
-                let _ = file.write_all(data.text.as_bytes());
-                data.path = Some(Arc::new(file_info.path().to_path_buf()));
-            }
-            return druid::Handled::Yes;
+    let write_entry_ref = Rc::clone(&entry_ref);
+    let write_text_view_ref = Rc::clone(&text_view_ref);
+    write_button.connect_clicked(move |_| {
+        let file_path = write_entry_ref.text().to_string();
+        let buffer = write_text_view_ref.buffer();
+        let start_iter = buffer.start_iter();
+        let end_iter = buffer.end_iter();
+        let text = buffer.text(&start_iter, &end_iter, false).to_string();
+
+        let mut file = match File::create(&file_path) {
+            Ok(file) => file,
+            Err(_) => {
+                println!("Failed to create file: {}", file_path);
+                return;
+            },
+        };
+
+        if file.write_all(text.as_bytes()).is_ok() {
+            println!("File written successfully: {}", file_path);
         }
+    });
 
-        druid::Handled::No
-    }
+    vbox.append(&*entry_ref);
+    vbox.append(&scrolled_window);
+    vbox.append(&read_button);
+    vbox.append(&write_button);
+
+    window.set_child(Some(&vbox));
+    window.present();
 }
