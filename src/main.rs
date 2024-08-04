@@ -1,5 +1,5 @@
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Box, Button, Entry, Orientation, ScrolledWindow, TextView};
+use gtk::{Application, ApplicationWindow, Box, Button, Entry, Orientation, ScrolledWindow, TextView, FileDialog};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::rc::Rc;
@@ -81,6 +81,9 @@ fn build_ui(app: &Application) {
         }
     });
 
+    let file_dialog = FileDialog::new();
+    file_dialog.open(&vbox, null, null);
+    
     vbox.append(&*entry_ref);
     vbox.append(&scrolled_window);
     vbox.append(&read_button);
