@@ -1,5 +1,5 @@
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Box, Button, Entry, Orientation, ScrolledWindow, TextView, FileDialog};
+use gtk::{gio, Application, ApplicationWindow, Box, Button, Entry, Orientation, ScrolledWindow, TextView, FileDialog};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::rc::Rc;
@@ -41,6 +41,7 @@ fn build_ui(app: &Application) {
 
     let entry_ref = Rc::new(entry);
     let text_view_ref = Rc::new(text_view);
+    let window_ref = Rc::new(window);
 
     let read_entry_ref = Rc::clone(&entry_ref);
     let read_text_view_ref = Rc::clone(&text_view_ref);
@@ -81,14 +82,30 @@ fn build_ui(app: &Application) {
         }
     });
 
-    let file_dialog = FileDialog::new();
-    file_dialog.open(&vbox, null, null);
+    let window_clone = Rc::clone(&window_ref);
+    let button = Button::with_label("Open File Dialog");
+    button.connect_clicked(move |_| {
+        let file_dialog = FileDialog::new();
+        file_dialog.open(Some(&*window_clone), None::<&gio::Cancellable>, |result| {
+            match result {
+                Ok(file) => {
+                    // Handle the file here
+                    println!("File selected: {:?}", file);
+                }
+                Err(error) => {
+                    // Handle the error here
+                    println!("Error: {:?}", error);
+                }
+            }
+        });
+    });
     
     vbox.append(&*entry_ref);
     vbox.append(&scrolled_window);
     vbox.append(&read_button);
     vbox.append(&write_button);
+    vbox.append(&button);
 
-    window.set_child(Some(&vbox));
-    window.present();
+    window_ref.set_child(Some(&vbox));
+    window_ref.present();
 }
